@@ -12,6 +12,7 @@
 * Content Author:  JacksonVD
 * Contact: jacksonvd.com
 * Date Written:    25-02-18
+* Last Modified:   18-04-18
 */
 
 #include "stdafx.h"
@@ -109,6 +110,10 @@ extern "C" __declspec(dllexport) BOOLEAN __stdcall PasswordFilter(PUNICODE_STRIN
 			if (http_status_code == 404) { // If the status code is 404 (i.e. password doesn't exist in pwned passwords data) THEN..
 				returnValue = TRUE; // Set returnValue Boolean to true (password is fine to use as it doesn't exist as a previously breached password)
 			}
+			else if (http_status_code / 100 == 3 || http_status_code / 100 == 4 || http_status_code / 100 == 5) // If there are any client, server errors or redirects
+			{
+				returnValue = TRUE; // Set returnValue Boolean to true (fail open)
+			}
 			else // If there was a response from the API
 			{
 				std::size_t found = APIResponse.find(hash.substr(5)); // Attempt to find the hash suffix
@@ -121,7 +126,7 @@ extern "C" __declspec(dllexport) BOOLEAN __stdcall PasswordFilter(PUNICODE_STRIN
 		}
 		curl_easy_cleanup(curl); // Clean-up for cURL
 	}
-
+	SecureZeroMemory(password, sizeof(password)); // Clear the password from memory
 	return returnValue; // Return the Boolean value to LSA
 
 }
