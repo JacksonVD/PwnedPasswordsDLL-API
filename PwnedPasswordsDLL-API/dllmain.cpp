@@ -26,6 +26,7 @@
 #include <sha.h>
 #include <filters.h>
 #include <hex.h>
+#include <regex>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -51,8 +52,8 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 /*
 * Quick and dirty function callback function for writing with cURL - append to string rather than using fwrite
 */
-
 size_t cURL_Callback(void *contents, size_t size, size_t nmemb, std::string *s)
+
 {
 	((std::string*)s)->append((char*)contents, size * nmemb);
 	return size * nmemb;
@@ -86,6 +87,8 @@ extern "C" __declspec(dllexport) BOOLEAN __stdcall PasswordFilter(PUNICODE_STRIN
 
 	// Declare and initialise cURL
 	CURL *curl = curl_easy_init();
+	// Declare and initialise the list for custom headers in the cURL
+	struct curl_slist* list = NULL;
 
 	// Initialise URL String as being the API address, as well as the first 5 letters of the password hash
 	std::string URL("https://api.pwnedpasswords.com/range/" + hash.substr(0, 5));
@@ -98,6 +101,8 @@ extern "C" __declspec(dllexport) BOOLEAN __stdcall PasswordFilter(PUNICODE_STRIN
 		CURLcode res;
 		curl_easy_setopt(curl, CURLOPT_URL, URL.c_str()); // Set the URL for CURL to the URL string
 		curl_easy_setopt(curl, CURLOPT_USERAGENT, "API Scraper/1.0"); // Troy requires a user-agent when calling API
+		list = curl_slist_append(list, "Add-Padding: true"); //Adds Add-Padding to the custom header list. Pads out responses to ensure all results contain a random number of records between 800 and 1,000."
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list); // Set the custom headers list
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, cURL_Callback); // Set the write function for cURL to cURL_Callback
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &APIResponse); // Set up cURL to write the API response to the APIResponse String
 
@@ -116,9 +121,8 @@ extern "C" __declspec(dllexport) BOOLEAN __stdcall PasswordFilter(PUNICODE_STRIN
 			}
 			else // If there was a response from the API
 			{
-				std::size_t found = APIResponse.find(hash.substr(5)); // Attempt to find the hash suffix
-
-				if (found != std::string::npos) // The find function will return string::npos if the requested string was no found
+				std::regex regexTest(hash.substr(5) + "(?!:0)");
+				if (regex_search(APIResponse, regexTest))
 				{
 					returnValue = FALSE; // If the hash exists, then set the return value to false (i.e. don't allow the password to be changed)
 				}
@@ -126,7 +130,5 @@ extern "C" __declspec(dllexport) BOOLEAN __stdcall PasswordFilter(PUNICODE_STRIN
 		}
 		curl_easy_cleanup(curl); // Clean-up for cURL
 	}
-	
 	return returnValue; // Return the Boolean value to LSA
-
 }
